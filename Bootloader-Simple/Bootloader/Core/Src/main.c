@@ -35,7 +35,7 @@
 #define __FLASH						__attribute__((section(".BufferBlockFLASH")))
 #define __CUSTOM_FLASH				__attribute__((section(".CustomSection")))
 #define FLASH_MAIN_APP_ADDR			0x8008000
-#define BL_JMP_CMD					"x"	// "JUMP"
+#define BL_JMP_CMD					"JUMP"//"x"
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/

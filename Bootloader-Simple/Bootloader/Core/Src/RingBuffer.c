@@ -14,19 +14,16 @@ static uint8_t Rx_Store_Buffer[STORE_BUF_SIZE];
 static uint32_t Idx_Previous;
 static uint32_t Idx_New;
 static uint32_t Head_Pos, Tail_Pos;
-//Bootloader Jump Command
-uint8_t isDataAvailable = 0;
-int32_t TIMEOUT = 0;
+
 
 // Function Prototypes
 void Init_RingBuffer(void);
 void Reset_RingBuffer(void);
-int waitForCmd(char *string, uint32_t Timeout);
+int waitForCmd(char *cmd, uint32_t Timeout);
 void UartWaitTxComplete(UART_HandleTypeDef *huart);
 
 
 // Functions
-
 void Init_RingBuffer(void) {
 	memset(DMA_Rx_Buffer, 0, RX_BUF_SIZE);
 	memset(Rx_Store_Buffer, 0, STORE_BUF_SIZE);
@@ -105,59 +102,58 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 	__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);	// Half transfer interrupt is disabled
 }
 
-int waitForCmd (char *string, uint32_t Timeout)
+int waitForCmd (char *cmd, uint32_t Timeout)
 {
-	int so_far =0;
-	int len = strlen (string);
-	TIMEOUT = Timeout;
-	isDataAvailable = 0;
+	int cmd_idx =0;
+	int len = strlen (cmd);
 
-	while ((Tail_Pos == Head_Pos) && TIMEOUT)
+	while ((Tail_Pos == Head_Pos) && Timeout--)
 	{
-		Common_Funcs.pBlink(250);;
+		Common_Funcs.pBlink(250);
 	}
 
-again:
-	/* if the incoming data does not match with the string, we will simply increment the index
-	 * And wait for the string to arrive in the incoming data
-	 * */
-	while (Rx_Store_Buffer[Tail_Pos] != string[so_far])  // peek in the rx_buffer to see if we get the string
+try_again:
+	// If the provided data doesn't match with the specified string, we'll increment the index
+	// and await the arrival of the Jump Command string within the incoming data
+	while (Rx_Store_Buffer[Tail_Pos] != cmd[cmd_idx])
 	{
-		if (TIMEOUT <= 0) return 0;
+		if (Timeout <= 0)
+			return 0;
 
+		if (Tail_Pos == Head_Pos)
+			goto try_again;
 
-		if (Tail_Pos == Head_Pos) goto again;
 		Tail_Pos++;
 
 		if (Tail_Pos == STORE_BUF_SIZE)
 			Tail_Pos = 0;
 	}
 
-	/* If the incoming data does match with the string, we will return 1 to indicate this */
-	while (Rx_Store_Buffer[Tail_Pos] == string[so_far]) // if we got the first letter of the string
+	// If the incoming data does match with the string, we will return 1 to indicate this
+	while (Rx_Store_Buffer[Tail_Pos] == cmd[cmd_idx])
 	{
-		if (TIMEOUT <= 0) return 0;
-		so_far++;
+		if (Timeout <= 0)
+			return 0;
 
-		if (Tail_Pos == Head_Pos) goto again;
-			Tail_Pos++;
+		cmd_idx++;
+
+		if (Tail_Pos == Head_Pos)
+			goto try_again;
+
+		Tail_Pos++;
+
 		if (Tail_Pos == STORE_BUF_SIZE)
 			Tail_Pos = 0;
-		if (so_far == len)
+		if (cmd_idx == len)
 			return 1;
 	}
 	HAL_Delay (100);
 
-	if ((so_far!=len)&&isDataAvailable)
-		{
-			isDataAvailable = 0;
-			goto again;
-		}
-		else
-		{
-			so_far = 0;
-			goto again;
-		}
+	if (cmd_idx != len)
+	{
+		cmd_idx = 0;
+		goto try_again;
+	}
 	return 0;
 }
 

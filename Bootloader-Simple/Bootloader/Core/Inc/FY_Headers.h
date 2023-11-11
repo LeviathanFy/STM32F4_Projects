@@ -34,7 +34,7 @@ extern CommonFunctions Common_Funcs;
 // Functions
 void Init_RingBuffer(void);
 void DeInit_RingBuffer(void);
-int waitForCmd(char *string, uint32_t Timeout);
+int waitForCmd(char *cmd, uint32_t Timeout);
 
 void Error_Handler(void);
 
